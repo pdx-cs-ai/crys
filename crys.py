@@ -52,6 +52,7 @@ class Puzzle(object):
         assert None not in leading
         self.leading = leading
 
+    # Print out a puzzle with solved variables substituted.
     def show(self, vals=dict()):
         for l in self.lines:
             for c in l:
@@ -63,6 +64,9 @@ class Puzzle(object):
                     print(c, end="")
             print()
 
+    # Solve a cryptarithm. Strategy: depth-first search with
+    # variables ordered right-to-left and lowest values
+    # tried first.
     def solve(self, pvars=None, vals=None):
         # New solution attempt. Can't put these values
         # inline because bad things happen with Python's
@@ -122,6 +126,8 @@ class Puzzle(object):
             if soln:
                 return soln
 
+        # No solution found. Undo the current assignment and
+        # return failure.
         del vals[v]
         pvars.append(v)
         return None
