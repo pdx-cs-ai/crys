@@ -4,6 +4,11 @@
 
 import sys
 
+DEBUG = False
+def debug(*args, enable=True):
+    if DEBUG and enable:
+        print(*args)
+
 # Read in a cryptarithm.
 class Puzzle(object):
     
@@ -81,16 +86,16 @@ class Puzzle(object):
 
             return carry == 0
 
-        print("solve", pvars, vals)
+        debug("solve", pvars, vals)
 
         # Base case: check for failure.
         if not ok():
-            print("fail")
+            debug("fail")
             return None
 
         # Base case: check for solution.
         if not pvars:
-            print("succeed")
+            debug("succeed")
             return vals
 
         # Recursive case: try to extend partial assignment.
@@ -110,6 +115,7 @@ class Puzzle(object):
 puzzle = Puzzle(open(sys.argv[1], "r"))
 puzzle.show()
 vals = puzzle.solve()
-print(vals)
-if vals is not None:
+if vals is None:
+    print("unsat")
+else:
     puzzle.show(vals)
