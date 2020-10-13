@@ -19,7 +19,7 @@ class Puzzle(object):
         for line in self.lines:
             vars |= set(line)
         self.vars = list(vars)
-
+        self.vals = dict()
     
     def show(self):
         max_width = max([len(l) for l in self.lines])
@@ -28,8 +28,12 @@ class Puzzle(object):
             for _ in range(max_width - width):
                 print(" ", end="")
             for c in l:
-                print(c, end="")
+                if c in self.vals:
+                    print(self.vals[c], end="")
+                else:
+                    print(c, end="")
             print()
 
 puzzle = Puzzle(open(sys.argv[1], "r"))
+puzzle.vals["s"] = 1
 puzzle.show()
