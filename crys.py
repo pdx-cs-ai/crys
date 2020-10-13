@@ -14,7 +14,13 @@ class Puzzle(object):
             line = next(f).strip()
             return [c for c in line]
 
-        self.lines = [read_line() for _ in range(3)]
+        # Read the three instance lines.
+        lines = [read_line() for _ in range(3)]
+
+        # Normalize the line lengths by padding with "letter" 0.
+        max_width = max([len(l) for l in lines])
+        self.lines = [ ["0"] * (max_width - len(l)) + l for l in lines ]
+
         vars = set()
         for line in self.lines:
             vars |= set(line)
@@ -28,12 +34,13 @@ class Puzzle(object):
             for _ in range(max_width - width):
                 print(" ", end="")
             for c in l:
-                if c in self.vals:
+                if c == "0":
+                    print(" ", end="")
+                elif c in self.vals:
                     print(self.vals[c], end="")
                 else:
                     print(c, end="")
             print()
 
 puzzle = Puzzle(open(sys.argv[1], "r"))
-puzzle.vals["s"] = 1
 puzzle.show()
