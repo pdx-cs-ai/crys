@@ -42,6 +42,16 @@ class Puzzle(object):
         tuples = [(l[0][i], l[1][i], l[2][i]) for i in range(max_width)]
         self.tuples = list(reversed(tuples))
     
+        # List of variables that lead the terms.
+        leading = [None] * 3
+        for (i, line) in enumerate(self.lines):
+            for c in line:
+                if c != "0":
+                    leading[i] = c
+                    break
+        assert None not in leading
+        self.leading = leading
+
     def show(self, vals=dict()):
         for l in self.lines:
             for c in l:
@@ -73,6 +83,11 @@ class Puzzle(object):
                     return vals[var]
                 return None
 
+            # Check for leading 0s.
+            if 0 in map(value, self.leading):
+                return False
+
+            # Check addition.
             carry = 0
             for d1, d2, s in self.tuples:
                 v1, v2, vs = map(value, (d1, d2, s))
@@ -83,7 +98,6 @@ class Puzzle(object):
                     return False
                 carry = total // 10
                 assert carry in {0, 1}
-
             return carry == 0
 
         debug("solve", pvars, vals)
