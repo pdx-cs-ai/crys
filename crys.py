@@ -22,17 +22,24 @@ class Puzzle(object):
         self.lines = [ ["0"] * (max_width - len(l)) + l for l in lines ]
 
         # Order the variables right-to-left top-to-bottom.
-        vars = []
+        # XXX vars is a Python built-in, so pvars.
+        pvars = []
         for i in range(3):
             for c in self.lines[i]:
-                if c == "0" or c in vars:
+                if c == "0" or c in pvars:
                     continue
-                vars.append(c)
+                pvars.append(c)
+        self.pvars = pvars
 
-        self.vars = vars
-        self.vals = dict()
+        # List of tuples forming the equation.
+        tuples = []
+        for d1 in self.lines[0]:
+            for d2 in self.lines[1]:
+                for s in self.lines[2]:
+                    tuples.append((d1, d2, s))
+        self.tuples = reversed(tuples)
     
-    def show(self):
+    def show(self, vals=dict()):
         max_width = max([len(l) for l in self.lines])
         for l in self.lines:
             width = len(l)
@@ -41,69 +48,73 @@ class Puzzle(object):
             for c in l:
                 if c == "0":
                     print(" ", end="")
-                elif c in self.vals:
-                    print(self.vals[c], end="")
+                elif c in vals:
+                    print(vals[c], end="")
                 else:
                     print(c, end="")
             print()
 
-    def solve(self):
+    def solve(self, pvars=None, vals=None):
+        # New solution attempt. Can't put these values
+        # inline because bad things happen with Python's
+        # evaluator.
+        if pvars is None:
+            pvars = list(self.pvars)
+        if vals is None:
+            vals = dict()
 
-        # Return 1 if puzzle is solved,
-        # 0 if puzzle is partially solved,
-        # -1 if state is illegal.
-        def check():
-
-            def value(var):
-                if var == "0":
-                    return 0;
-                if var in self.vals:
-                    return self.vals[var]
-                return None
-
-            carry = 0
-            for d1 in reversed(self.lines[0]):
-                v1 = value(d1)
-                if v1 is None:
-                    return 0
-                for d2 in reversed(self.lines[1]):
-                    v2 = value(d2)
-                    if v2 is None:
-                        return 0
-                    for s in reversed(self.lines[2]):
-                        vs = value(s)
-                        if vs is None:
-                            return 0
-                        total = v1 + v2 + carry
-                        if total % 10 != vs:
-                            return -1
-                        carry = total - total % 10
-
-            if carry != 0:
-                return -1
-            
-        unused = sorted(set(range(10)) - set(self.vals.values()))
-        for v in self.vars:
-            if v in self.vals:
-                continue
-            for val in unused:
-                self.vals[v] = val
-                status = check()
-                if status == 1:
-                    return True
-                if status == -1:
-                    del self.vals[v]
-                    continue
-                result = self.solve()
-                if result:
-                    return True
-                del self.vals[v]
-
-        if not self.vals:
+        # Return the value of the variable,
+        # or None if unvalued.
+        def value(var):
+            if var == "0":
+                return 0;
+            if var in vals:
+                return vals[var]
             return None
-        return self.vals
+
+        # Return True iff no constraint violations
+        def ok():
+            carry = 0
+            for d1, d2, s in self.tuples:
+                if carry is None:
+                    continue
+                v1, v2, vs = map(value, (d1, d2, s))
+                if None in (v1, v2):
+                    carry = None
+                    continue
+                total = v1 + v2 + carry
+                if vs is not None and total % 10 != vs:
+                    return False
+                carry = total - total % 10
+
+            if carry == 1:
+                return False
+            return True
+
+        # Base case: check for solution.
+        if not pvars:
+            return vals
+
+        # Base case: check for failure.
+        if not ok():
+            return None
+
+        # Recursive case: try to extend partial assignment.
+        unused = sorted(list(set(range(10)) - set(vals.values())))
+        v = pvars.pop()
+        assert v not in vals
+        for val in unused:
+            vals[v] = val
+            soln = self.solve(pvars=pvars, vals=vals)
+            if soln:
+                return soln
+
+        del vals[v]
+        pvars.append(v)
+        return None
 
 puzzle = Puzzle(open(sys.argv[1], "r"))
 puzzle.show()
-print(puzzle.solve())
-puzzle.show()
+vals = puzzle.solve()
+print(vals)
+puzzle.show(vals)
