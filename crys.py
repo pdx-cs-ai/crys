@@ -24,27 +24,21 @@ class Puzzle(object):
         # Order the variables right-to-left top-to-bottom.
         # XXX vars is a Python built-in, so pvars.
         pvars = []
-        for i in range(3):
-            for c in self.lines[i]:
+        for j in reversed(range(max_width)):
+            for i in range(3):
+                c = self.lines[i][j]
                 if c == "0" or c in pvars:
                     continue
                 pvars.append(c)
         self.pvars = pvars
 
         # List of tuples forming the equation.
-        tuples = []
-        for d1 in self.lines[0]:
-            for d2 in self.lines[1]:
-                for s in self.lines[2]:
-                    tuples.append((d1, d2, s))
-        self.tuples = reversed(tuples)
+        l = self.lines
+        tuples = [(l[0][i], l[1][i], l[2][i]) for i in range(max_width)]
+        self.tuples = list(reversed(tuples))
     
     def show(self, vals=dict()):
-        max_width = max([len(l) for l in self.lines])
         for l in self.lines:
-            width = len(l)
-            for _ in range(max_width - width):
-                print(" ", end="")
             for c in l:
                 if c == "0":
                     print(" ", end="")
@@ -63,41 +57,41 @@ class Puzzle(object):
         if vals is None:
             vals = dict()
 
-        # Return the value of the variable,
-        # or None if unvalued.
-        def value(var):
-            if var == "0":
-                return 0;
-            if var in vals:
-                return vals[var]
-            return None
-
         # Return True iff no constraint violations
         def ok():
+            # Return the value of the variable,
+            # or None if unvalued.
+            def value(var):
+                if var == "0":
+                    return 0;
+                if var in vals:
+                    return vals[var]
+                return None
+
             carry = 0
             for d1, d2, s in self.tuples:
-                if carry is None:
-                    continue
                 v1, v2, vs = map(value, (d1, d2, s))
                 if None in (v1, v2):
-                    carry = None
-                    continue
+                    return True
                 total = v1 + v2 + carry
                 if vs is not None and total % 10 != vs:
                     return False
-                carry = total - total % 10
+                carry = total // 10
+                assert carry in {0, 1}
 
-            if carry == 1:
-                return False
-            return True
+            return carry == 0
 
-        # Base case: check for solution.
-        if not pvars:
-            return vals
+        print("solve", pvars, vals)
 
         # Base case: check for failure.
         if not ok():
+            print("fail")
             return None
+
+        # Base case: check for solution.
+        if not pvars:
+            print("succeed")
+            return vals
 
         # Recursive case: try to extend partial assignment.
         unused = sorted(list(set(range(10)) - set(vals.values())))
@@ -117,4 +111,5 @@ puzzle = Puzzle(open(sys.argv[1], "r"))
 puzzle.show()
 vals = puzzle.solve()
 print(vals)
-puzzle.show(vals)
+if vals is not None:
+    puzzle.show(vals)
