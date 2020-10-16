@@ -16,7 +16,11 @@ class Puzzle(object):
 
         # Read in a line and split into characters.
         def read_line():
-            line = next(f).strip()
+            while True:
+                line = next(f)
+                if line and line[0] != "#":
+                    break
+            line = line.strip()
             return [c for c in line]
 
         # Read the three instance lines.
@@ -37,7 +41,7 @@ class Puzzle(object):
                 pvars.append(c)
         self.pvars = pvars
 
-        # List of tuples forming the equation.
+        # List of tuples forming the columns of the equation.
         l = self.lines
         tuples = [(l[0][i], l[1][i], l[2][i]) for i in range(max_width)]
         self.tuples = list(reversed(tuples))
@@ -95,13 +99,15 @@ class Puzzle(object):
             carry = 0
             for d1, d2, s in self.tuples:
                 v1, v2, vs = map(value, (d1, d2, s))
-                if None in (v1, v2):
+                if None in (v1, v2, vs):
                     return True
                 total = v1 + v2 + carry
-                if vs is not None and total % 10 != vs:
+                if total % 10 != vs:
                     return False
                 carry = total // 10
                 assert carry in {0, 1}
+
+            # Final carry-out must be 0.
             return carry == 0
 
         debug("solve", pvars, vals)
@@ -134,6 +140,7 @@ class Puzzle(object):
 
 puzzle = Puzzle(open(sys.argv[1], "r"))
 puzzle.show()
+print()
 vals = puzzle.solve()
 if vals is None:
     print("unsat")
