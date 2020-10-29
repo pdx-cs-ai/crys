@@ -4,7 +4,7 @@
 
 import sys
 
-DEBUG = False
+DEBUG = True
 def debug(*args, enable=True):
     if DEBUG and enable:
         print(*args)
@@ -44,17 +44,16 @@ class Puzzle(object):
         # List of tuples forming the columns of the equation.
         l = self.lines
         tuples = [(l[0][i], l[1][i], l[2][i]) for i in range(max_width)]
-        self.tuples = list(reversed(tuples))
+        self.tuples = list(tuples)
     
         # List of variables that lead the terms.
-        leading = [None] * 3
+        leading = set()
         for (i, line) in enumerate(self.lines):
             for c in line:
                 if c != "0":
-                    leading[i] = c
+                    leading.add(c)
                     break
-        assert None not in leading
-        self.leading = leading
+        self.leading = list(leading)
 
     # Print out a puzzle with solved variables substituted.
     def show(self, vals=dict()):
@@ -63,7 +62,13 @@ class Puzzle(object):
                 if c == "0":
                     print(" ", end="")
                 elif c in vals:
-                    print(vals[c], end="")
+                    n = len(vals[c])
+                    if n == 0:
+                        print("-", end="")
+                    elif n == 1:
+                        print(set(vals[c]).pop(), end="")
+                    else:
+                        print("*", end="")
                 else:
                     print(c, end="")
             print()
@@ -71,72 +76,73 @@ class Puzzle(object):
     # Solve a cryptarithm. Strategy: depth-first search with
     # variables ordered right-to-left and lowest values
     # tried first.
-    def solve(self, pvars=None, vals=None):
-        # New solution attempt. Can't put these values
-        # inline because bad things happen with Python's
-        # evaluator.
-        if pvars is None:
-            pvars = list(self.pvars)
-        if vals is None:
-            vals = dict()
+    def solve(self):
 
-        # Return True iff no constraint violations
-        def ok():
-            # Return the value of the variable,
-            # or None if unvalued.
-            def value(var):
-                if var == "0":
-                    return 0;
-                if var in vals:
-                    return vals[var]
+        def extend(tuples, ranges, carry):
+            # Base case: All tuples cleared.
+            if not tuples:
+                if carry == 0:
+                    return dict(ranges)
                 return None
 
-            # Check for leading 0s.
-            if 0 in map(value, self.leading):
-                return False
+            # Recursive case: Value current tuple and
+            # extend.
+            ts = list(tuples)
+            t = ts.pop()
+            v1 = t[0]
+            v2 = t[1]
+            s = t[2]
+            for v1d in ranges[v1]:
+                for v2d in ranges[v2]:
+                    ss = v1d + v2d + carry
+                    sd = ss
+                    sc = 0
+                    if sd >= 10:
+                        sd -= 10
+                        sc = 1
+                    if sd in ranges[s]:
+                        rs = { k : set(ranges[k]) for k in ranges }
+                        rs[v1] = {v1d}
+                        rs[v2] = {v2d}
+                        rs[s] = {sd}
 
-            # Check addition.
-            carry = 0
-            for d1, d2, s in self.tuples:
-                v1, v2, vs = map(value, (d1, d2, s))
-                if None in (v1, v2, vs):
-                    return True
-                total = v1 + v2 + carry
-                if total % 10 != vs:
-                    return False
-                carry = total // 10
-                assert carry in {0, 1}
+                        def stopped(vv, vd):
+                            if vv == '0':
+                                return False
+                            for v in rs:
+                                if v == '0' or v == vv:
+                                    continue
+                                rs[v] -= {vd}
+                                if not rs[v]:
+                                    return True
+                            return False
 
-            # Final carry-out must be 0.
-            return carry == 0
+                        if (stopped(v1, v1d) or
+                            stopped(v2, v2d) or
+                            stopped(s, sd)):
+                            continue
 
-        debug("solve", pvars, vals)
+                        result = extend(ts, rs, sc)
+                        if result is not None:
+                            return result
 
-        # Base case: check for failure.
-        if not ok():
-            debug("fail")
+            # Could not find an extension.
             return None
 
-        # Base case: check for solution.
-        if not pvars:
-            debug("succeed")
-            return vals
+        start_tuples = list(self.tuples)
+        start_ranges = { pvar: set(range(10)) for pvar in self.pvars }
+        start_ranges['0'] = {0}
+        for v in self.leading:
+            start_ranges[v] -= {0}
+        if start_tuples[0][0] == '0':
+            assert start_tuples[0][1] == '0'
+            start_ranges[start_tuples[0][2]] = {1}
+            for v in start_ranges:
+                if v == start_tuples[0][2]:
+                    continue
+                start_ranges[v] -= {1}
+        return extend(start_tuples, start_ranges, 0)
 
-        # Recursive case: try to extend partial assignment.
-        unused = sorted(list(set(range(10)) - set(vals.values())))
-        v = pvars.pop()
-        assert v not in vals
-        for val in unused:
-            vals[v] = val
-            soln = self.solve(pvars=pvars, vals=vals)
-            if soln:
-                return soln
-
-        # No solution found. Undo the current assignment and
-        # return failure.
-        del vals[v]
-        pvars.append(v)
-        return None
 
 puzzle = Puzzle(open(sys.argv[1], "r"))
 puzzle.show()
